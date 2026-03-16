@@ -1,30 +1,61 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Send, User as UserIcon, ArrowRight } from "lucide-react";
+import { Send, User as UserIcon, ArrowRight, Sparkles } from "lucide-react";
 import { Layout } from "@/components/layout";
-import { useChat, ChatMessage } from "@/hooks/use-assessment";
+import { ChatMessage } from "@/hooks/use-assessment";
+import {
+  useAssessment,
+  generateChatOpening,
+  generateFollowUpQuestions,
+  getDimensionLabel,
+  getHighestDimension,
+  getLowestDimension,
+  BigFiveScores,
+} from "@/context/assessment-context";
 
-function SparklesIcon() {
+// Mock scores for demo (when entering chat directly without survey)
+const DEMO_SCORES: BigFiveScores = { O: 82, C: 64, E: 54, A: 90, N: 48 };
+
+function CoachAvatar() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
-    </svg>
+    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+      <Sparkles className="w-4 h-4" />
+    </div>
   );
+}
+
+function UserAvatar() {
+  return (
+    <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center shrink-0">
+      <UserIcon className="w-4 h-4" />
+    </div>
+  );
+}
+
+interface Message {
+  id: string;
+  role: 'user' | 'coach';
+  text: string;
 }
 
 export default function Chat() {
   const [, setLocation] = useLocation();
-  const { mutate: sendMessage, isPending } = useChat();
+  const { scores: contextScores, setChatSummary } = useAssessment();
+  const scores = contextScores ?? DEMO_SCORES;
 
-  const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "init",
-      role: "coach",
-      text: "설문하시느라 고생 많으셨어요! 결과를 분석하기 전에 한 가지만 여쭤볼게요. 스트레스를 받을 때 보통 어떻게 대처하시는 편인가요?"
-    }
+  const opening = generateChatOpening(scores);
+  const followUps = generateFollowUpQuestions(scores);
+  const highest = getHighestDimension(scores);
+  const lowest = getLowestDimension(scores);
+
+  const [messages, setMessages] = useState<Message[]>([
+    { id: "init", role: "coach", text: opening }
   ]);
+  const [input, setInput] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const [turnCount, setTurnCount] = useState(0);
+  const [isComplete, setIsComplete] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -35,43 +66,76 @@ export default function Chat() {
     }
   }, [messages, isPending]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isPending) return;
-
-    const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", text: input };
-    setMessages(prev => [...prev, userMsg]);
-    setInput("");
-
-    sendMessage(input, {
-      onSuccess: (reply) => {
-        setMessages(prev => [...prev, reply]);
-      }
-    });
+  const getCoachReply = (userText: string, turn: number): string => {
+    if (turn < followUps.length) {
+      return followUps[turn];
+    }
+    // Final closing message
+    const summaryText = `오늘 나눈 이야기 잘 들었어요. ${getDimensionLabel(highest)} 성향이 강하신 만큼, 그에 맞는 방식으로 에너지를 관리하시는 게 중요할 것 같아요. ${getDimensionLabel(lowest)} 쪽도 조금씩 의식적으로 신경 써주시면 더 균형 잡힌 모습을 느끼실 수 있을 거예요. 오늘 편하게 이야기 나눠주셔서 감사해요. 아래에 오늘 대화 요약을 정리해드렸어요.`;
+    
+    // Save summary to context
+    const summary = `${getDimensionLabel(highest)} 성향 강점 · ${getDimensionLabel(lowest)} 영역 성장 가능성 · 개인 맞춤 코칭 준비 완료`;
+    setChatSummary(summary);
+    
+    return summaryText;
   };
 
-  const isComplete = messages.length >= 5;
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isPending || isComplete) return;
+
+    const userMsg: Message = { id: Date.now().toString(), role: "user", text: input };
+    setMessages(prev => [...prev, userMsg]);
+    setInput("");
+    setIsPending(true);
+
+    const currentTurn = turnCount;
+
+    setTimeout(() => {
+      const reply = getCoachReply(input, currentTurn);
+      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "coach", text: reply }]);
+      setIsPending(false);
+      setTurnCount(t => t + 1);
+      if (currentTurn >= followUps.length) {
+        setIsComplete(true);
+      }
+    }, 1400);
+  };
+
+  // Score bar component
+  const ScoreBar = ({ cat, score }: { cat: string; score: number }) => (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground w-10 shrink-0">{cat}</span>
+      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className="h-full bg-primary rounded-full" style={{ width: `${score}%` }} />
+      </div>
+      <span className="text-xs font-bold text-primary w-6 text-right">{score}</span>
+    </div>
+  );
 
   return (
     <Layout showNav={false}>
       <div className="max-w-2xl mx-auto w-full flex flex-col" style={{ height: "calc(100dvh - 3.5rem)" }}>
 
-        {/* Header */}
-        <div className="bg-background border-b border-border/50 px-4 py-3 flex items-center justify-between shrink-0">
-          <div>
-            <h2 className="font-display font-bold text-base sm:text-lg text-primary leading-tight">AI 코치와의 대화</h2>
-            <p className="text-xs text-muted-foreground">당신을 더 깊이 이해하는 중입니다</p>
+        {/* Header with score summary */}
+        <div className="bg-background border-b border-border/50 px-4 py-3 shrink-0">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h2 className="font-display font-bold text-base sm:text-lg text-primary leading-tight">AI 코치와의 상담</h2>
+              <p className="text-xs text-muted-foreground">설문 결과를 바탕으로 대화합니다</p>
+            </div>
+            <CoachAvatar />
           </div>
-          <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-            <SparklesIcon />
+          {/* Compact score display */}
+          <div className="grid grid-cols-5 gap-1 mt-1">
+            {(Object.entries(scores) as [string, number][]).map(([cat, score]) => (
+              <ScoreBar key={cat} cat={getDimensionLabel(cat as any).slice(0, 2)} score={score} />
+            ))}
           </div>
         </div>
 
         {/* Chat messages */}
-        <div
-          ref={scrollRef}
-          className="flex-1 overflow-y-auto px-4 py-5 space-y-4 bg-muted/20"
-        >
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-5 space-y-4 bg-muted/15">
           {messages.map((msg) => (
             <motion.div
               key={msg.id}
@@ -80,63 +144,68 @@ export default function Chat() {
               transition={{ duration: 0.25 }}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} items-end gap-2`}
             >
-              {msg.role === 'coach' && (
-                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 mb-0.5">
-                  <SparklesIcon />
-                </div>
-              )}
-
-              <div
-                className={`
-                  max-w-[78%] sm:max-w-[75%] px-4 py-3 rounded-2xl text-sm sm:text-base leading-relaxed
-                  ${msg.role === 'user'
-                    ? 'bg-foreground text-background rounded-br-sm'
-                    : 'bg-card border border-border shadow-sm text-foreground rounded-bl-sm'
-                  }
-                `}
-              >
+              {msg.role === 'coach' && <CoachAvatar />}
+              <div className={`
+                max-w-[78%] sm:max-w-[75%] px-4 py-3 rounded-2xl text-sm sm:text-base leading-relaxed
+                ${msg.role === 'user'
+                  ? 'bg-foreground text-background rounded-br-sm'
+                  : 'bg-card border border-border shadow-sm text-foreground rounded-bl-sm'
+                }
+              `}>
                 {msg.text}
               </div>
-
-              {msg.role === 'user' && (
-                <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center shrink-0 mb-0.5">
-                  <UserIcon className="w-4 h-4" />
-                </div>
-              )}
+              {msg.role === 'user' && <UserAvatar />}
             </motion.div>
           ))}
 
           {isPending && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-end gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <SparklesIcon />
-              </div>
+              <CoachAvatar />
               <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-card border border-border shadow-sm flex items-center gap-1.5">
                 {[0, 0.2, 0.4].map((delay, i) => (
-                  <span
-                    key={i}
-                    className="w-2 h-2 rounded-full bg-primary/50 animate-bounce"
-                    style={{ animationDelay: `${delay}s` }}
-                  />
+                  <span key={i} className="w-2 h-2 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: `${delay}s` }} />
                 ))}
               </div>
             </motion.div>
           )}
 
+          {/* Completion card */}
           {isComplete && !isPending && (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              className="pt-4 pb-2 text-center"
+              className="mt-6 bg-card border border-primary/20 rounded-2xl p-5 shadow-sm"
             >
-              <p className="text-sm text-muted-foreground mb-3">대화가 완료되었습니다. 리포트를 확인해보세요.</p>
-              <button
-                onClick={() => setLocation("/report")}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium text-sm shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
-              >
-                결과 리포트 보기
-                <ArrowRight className="w-4 h-4" />
-              </button>
+              <p className="text-xs font-bold text-primary uppercase tracking-wider mb-3">오늘의 상담 요약</p>
+              <div className="space-y-2 mb-5">
+                <div className="flex items-start gap-2 text-sm">
+                  <span className="text-primary mt-0.5">•</span>
+                  <span>가장 두드러진 성향: <strong>{getDimensionLabel(highest)}</strong> ({scores[highest]}점)</span>
+                </div>
+                <div className="flex items-start gap-2 text-sm">
+                  <span className="text-primary mt-0.5">•</span>
+                  <span>성장 가능성 영역: <strong>{getDimensionLabel(lowest)}</strong> ({scores[lowest]}점)</span>
+                </div>
+                <div className="flex items-start gap-2 text-sm">
+                  <span className="text-primary mt-0.5">•</span>
+                  <span>대화 턴 수: {turnCount}회 · 맞춤 분석 준비 완료</span>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => setLocation("/report")}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-medium text-sm shadow-md hover:-translate-y-0.5 transition-all"
+                >
+                  기본 리포트 보기
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setLocation("/pricing")}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-card border-2 border-primary/30 text-primary font-medium text-sm hover:bg-primary/5 transition-all"
+                >
+                  심층 리포트 보기 ✦
+                </button>
+              </div>
             </motion.div>
           )}
         </div>
@@ -150,7 +219,7 @@ export default function Chat() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={isPending || isComplete}
-              placeholder={isComplete ? "대화가 완료되었습니다" : "자유롭게 답변해주세요..."}
+              placeholder={isComplete ? "상담이 완료되었습니다" : "자유롭게 답변해주세요..."}
               className="flex-1 bg-muted/60 border-2 border-transparent focus:border-primary/30 focus:bg-background focus:outline-none rounded-2xl px-4 py-3 text-sm sm:text-base transition-all disabled:opacity-50 placeholder:text-muted-foreground/60"
             />
             <button

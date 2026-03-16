@@ -26,22 +26,28 @@ export function Layout({ children, showNav = true }: LayoutProps) {
             </Link>
 
             {/* Desktop nav */}
-            <nav className="hidden sm:flex items-center gap-6">
+            <nav className="hidden sm:flex items-center gap-5">
               <Link
                 href="/start"
                 className={`text-sm font-medium transition-colors ${
                   location === "/start" ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                분석 시작하기
+                분석 시작
               </Link>
               <Link
-                href="/invite"
+                href="/pricing"
                 className={`text-sm font-medium transition-colors ${
-                  location === "/invite" ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  location === "/pricing" ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                초대 확인
+                요금제
+              </Link>
+              <Link
+                href="/start"
+                className="text-sm font-semibold px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:-translate-y-0.5 transition-all shadow-sm"
+              >
+                무료로 시작하기
               </Link>
             </nav>
 
@@ -58,26 +64,21 @@ export function Layout({ children, showNav = true }: LayoutProps) {
           {/* Mobile dropdown menu */}
           {menuOpen && (
             <div className="sm:hidden border-t border-border/40 bg-background px-4 py-3 flex flex-col gap-1">
-              <Link
-                href="/start"
-                className="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors"
-                onClick={() => setMenuOpen(false)}
-              >
+              <Link href="/start" className="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors" onClick={() => setMenuOpen(false)}>
                 분석 시작하기
               </Link>
-              <Link
-                href="/invite"
-                className="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors"
-                onClick={() => setMenuOpen(false)}
-              >
-                초대 확인
+              <Link href="/pricing" className="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors" onClick={() => setMenuOpen(false)}>
+                요금제 · 심층 분석
               </Link>
-              <Link
-                href="/report"
-                className="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors"
-                onClick={() => setMenuOpen(false)}
-              >
-                리포트 보기 (데모)
+              <Link href="/report" className="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors" onClick={() => setMenuOpen(false)}>
+                리포트 보기
+              </Link>
+              <Link href="/chat" className="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors" onClick={() => setMenuOpen(false)}>
+                AI 코치 상담
+              </Link>
+              <div className="my-1 h-px bg-border" />
+              <Link href="/admin" className="flex items-center px-3 py-2.5 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted transition-colors" onClick={() => setMenuOpen(false)}>
+                관리자 페이지
               </Link>
             </div>
           )}

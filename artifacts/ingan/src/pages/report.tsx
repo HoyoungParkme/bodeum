@@ -1,13 +1,16 @@
+import { Link } from "wouter";
 import { motion } from "framer-motion";
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer
 } from "recharts";
-import { Download, Share2, Star, AlertCircle, MessageCircle, Lightbulb } from "lucide-react";
+import { Download, Share2, Star, AlertCircle, MessageCircle, Lightbulb, Sparkles, ArrowRight, Lock } from "lucide-react";
 import { Layout } from "@/components/layout";
 import { useReport } from "@/hooks/use-assessment";
+import { useAssessment, getDimensionLabel, getHighestDimension, getLowestDimension } from "@/context/assessment-context";
 
 export default function Report() {
   const { data: report, isLoading } = useReport();
+  const { scores, isPremium } = useAssessment();
 
   if (isLoading || !report) {
     return (
@@ -166,13 +169,77 @@ export default function Report() {
           </div>
         </motion.div>
 
+        {/* Premium Upgrade CTA */}
+        {!isPremium && (
+          <motion.div
+            variants={itemVariants}
+            className="relative overflow-hidden bg-foreground text-background rounded-2xl sm:rounded-3xl p-6 sm:p-8"
+          >
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-2">
+                <Lock className="w-4 h-4 text-primary" />
+                <span className="text-xs font-bold text-primary uppercase tracking-widest">심층 분석 · 유료</span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-display font-bold mb-2 text-balance">
+                더 깊은 나를 발견하고 싶다면?
+              </h3>
+              <p className="text-sm text-background/70 leading-relaxed mb-5 text-balance">
+                챗봇 대화까지 통합한 종합 심층 리포트, 나만의 행동 가이드, 코치의 편지를 받아보세요.
+                변화 추적 리포트로 시간이 지나며 달라지는 나를 확인하세요.
+              </p>
+              <div className="flex flex-wrap gap-2 mb-5">
+                {["종합 심층 리포트", "행동 가이드 10가지+", "코치의 편지", "변화 추적", "PDF 저장"].map(f => (
+                  <span key={f} className="flex items-center gap-1 text-xs px-2.5 py-1 bg-white/10 rounded-full">
+                    <Sparkles className="w-3 h-3 text-primary" />
+                    {f}
+                  </span>
+                ))}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link
+                  href="/pricing"
+                  className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:-translate-y-0.5 transition-all shadow-lg shadow-primary/20"
+                >
+                  ₩9,900으로 심층 분석 보기
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+                <Link
+                  href="/chat"
+                  className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-white/10 text-background font-medium text-sm hover:bg-white/20 transition-colors"
+                >
+                  AI 코치와 다시 대화하기
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {isPremium && (
+          <motion.div variants={itemVariants}>
+            <Link
+              href="/premium-report"
+              className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-primary text-primary-foreground font-semibold hover:-translate-y-0.5 transition-all shadow-md shadow-primary/20"
+            >
+              <Sparkles className="w-4 h-4" />
+              심층 리포트 보러가기
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </motion.div>
+        )}
+
         {/* CTAs */}
         <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-3 pt-2">
-          <button className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-foreground text-background font-medium text-sm sm:text-base hover:bg-foreground/90 transition-colors shadow-lg">
+          <button
+            onClick={() => alert("PDF 저장은 심층 분석(유료) 기능입니다.")}
+            className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-foreground text-background font-medium text-sm sm:text-base hover:bg-foreground/90 transition-colors shadow-lg"
+          >
             <Download className="w-4 h-4 sm:w-5 sm:h-5" />
             PDF로 저장하기
           </button>
-          <button className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-card border-2 border-border font-medium text-sm sm:text-base hover:border-foreground/20 hover:bg-muted/50 transition-colors">
+          <button
+            onClick={() => { navigator.clipboard.writeText(window.location.origin); alert("링크가 복사되었습니다!"); }}
+            className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-card border-2 border-border font-medium text-sm sm:text-base hover:border-foreground/20 hover:bg-muted/50 transition-colors"
+          >
             <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
             결과 링크 공유
           </button>

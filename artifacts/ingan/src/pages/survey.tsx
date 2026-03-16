@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { Layout } from "@/components/layout";
 import { useQuestions, QUESTIONS_PER_PAGE, TOTAL_PAGES } from "@/hooks/use-assessment";
+import { useAssessment } from "@/context/assessment-context";
 
 const LIKERT_LABELS = ["전혀\n아니다", "아니다", "보통", "그렇다", "매우\n그렇다"];
 const CATEGORY_COLORS: Record<string, string> = {
@@ -17,9 +18,10 @@ const CATEGORY_COLORS: Record<string, string> = {
 export default function Survey() {
   const [, setLocation] = useLocation();
   const { data: questions, isLoading } = useQuestions();
+  const { setAnswers } = useAssessment();
 
   const [currentPage, setCurrentPage] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [answers, setLocalAnswers] = useState<Record<number, number>>({});
   const [direction, setDirection] = useState(1);
 
   if (isLoading || !questions) {
@@ -47,11 +49,13 @@ export default function Survey() {
   const progressPct = (currentPage / TOTAL_PAGES) * 100;
 
   const handleAnswer = (questionId: number, val: number) => {
-    setAnswers(prev => ({ ...prev, [questionId]: val }));
+    setLocalAnswers(prev => ({ ...prev, [questionId]: val }));
   };
 
   const handleNext = () => {
     if (isLastPage) {
+      // Save to global context before navigating
+      setAnswers(answers);
       setLocation("/chat");
     } else {
       setDirection(1);
@@ -91,9 +95,7 @@ export default function Survey() {
             </button>
 
             <div className="text-center">
-              <span className="text-sm font-bold text-foreground">
-                {startQ}–{endQ}
-              </span>
+              <span className="text-sm font-bold text-foreground">{startQ}–{endQ}</span>
               <span className="text-sm text-muted-foreground"> / 100문항</span>
             </div>
 
@@ -101,8 +103,6 @@ export default function Survey() {
               {currentPage + 1} / {TOTAL_PAGES} 페이지
             </span>
           </div>
-
-          {/* Progress bar */}
           <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-primary rounded-full"
@@ -112,16 +112,14 @@ export default function Survey() {
           </div>
         </div>
 
-        {/* Category label for this page */}
+        {/* Category label */}
         <div className="mb-5 flex items-center gap-2">
           {pageQuestions[0] && (
             <span className={`text-xs font-semibold px-3 py-1 rounded-full ${CATEGORY_COLORS[pageQuestions[0].category]}`}>
               {pageQuestions[0].categoryLabel} 파트
             </span>
           )}
-          <span className="text-xs text-muted-foreground">
-            {answeredOnPage}/{pageQuestions.length}개 응답
-          </span>
+          <span className="text-xs text-muted-foreground">{answeredOnPage}/{pageQuestions.length}개 응답</span>
         </div>
 
         {/* Questions */}
@@ -142,22 +140,16 @@ export default function Survey() {
                 <div
                   key={q.id}
                   className={`bg-card border rounded-2xl p-5 sm:p-6 transition-all duration-200 ${
-                    selected !== undefined
-                      ? "border-primary/25 shadow-sm shadow-primary/5"
-                      : "border-border"
+                    selected !== undefined ? "border-primary/25 shadow-sm shadow-primary/5" : "border-border"
                   }`}
                 >
-                  {/* Question text */}
                   <div className="flex gap-3 mb-5">
                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-muted text-muted-foreground text-xs font-bold flex items-center justify-center mt-0.5">
                       {startQ + idx}
                     </span>
-                    <p className="text-base sm:text-lg font-medium text-foreground leading-relaxed">
-                      {q.text}
-                    </p>
+                    <p className="text-base sm:text-lg font-medium text-foreground leading-relaxed">{q.text}</p>
                   </div>
 
-                  {/* Likert scale */}
                   <div className="flex items-end justify-between gap-1.5 sm:gap-2">
                     {[1, 2, 3, 4, 5].map((val) => {
                       const isSelected = selected === val;
@@ -165,17 +157,15 @@ export default function Survey() {
                         <button
                           key={val}
                           onClick={() => handleAnswer(q.id, val)}
-                          className={`flex-1 flex flex-col items-center gap-1.5 group transition-all duration-150`}
+                          className="flex-1 flex flex-col items-center gap-1.5 group transition-all duration-150"
                         >
-                          <div
-                            className={`
-                              w-full h-11 sm:h-12 rounded-xl border-2 flex items-center justify-center font-bold text-sm transition-all duration-150
-                              ${isSelected
-                                ? "border-primary bg-primary text-primary-foreground scale-105 shadow-md shadow-primary/20"
-                                : "border-border bg-background text-muted-foreground group-hover:border-primary/40 group-hover:bg-primary/5 group-active:scale-95"
-                              }
-                            `}
-                          >
+                          <div className={`
+                            w-full h-11 sm:h-12 rounded-xl border-2 flex items-center justify-center font-bold text-sm transition-all duration-150
+                            ${isSelected
+                              ? "border-primary bg-primary text-primary-foreground scale-105 shadow-md shadow-primary/20"
+                              : "border-border bg-background text-muted-foreground group-hover:border-primary/40 group-hover:bg-primary/5 group-active:scale-95"
+                            }
+                          `}>
                             {val}
                           </div>
                           <span className="text-[10px] sm:text-xs text-muted-foreground text-center leading-tight whitespace-pre-line hidden sm:block">
@@ -186,7 +176,6 @@ export default function Survey() {
                     })}
                   </div>
 
-                  {/* Mobile: show labels below extreme values only */}
                   <div className="flex justify-between mt-1 sm:hidden">
                     <span className="text-[10px] text-muted-foreground">전혀 아니다</span>
                     <span className="text-[10px] text-muted-foreground">매우 그렇다</span>
@@ -218,16 +207,15 @@ export default function Survey() {
               disabled={!allAnsweredOnPage}
               className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 allAnsweredOnPage
-                  ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 active:translate-y-0"
+                  ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               }`}
             >
-              {isLastPage ? "설문 완료" : "다음 페이지"}
+              {isLastPage ? "설문 완료 — AI 코치와 대화하기" : "다음 페이지"}
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
-
       </div>
     </Layout>
   );
