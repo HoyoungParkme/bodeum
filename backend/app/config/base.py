@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings as PydanticBaseSettings
 from pydantic_settings import SettingsConfigDict
@@ -15,6 +17,18 @@ class BaseSettings(PydanticBaseSettings):
     )
     secret_key: str = "change-me"
     debug: bool = False
+    llm_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("LLM_API_KEY", "OPENAI_API_KEY"),
+    )
+    llm_model: str = Field(
+        default="gpt-4.1-mini",
+        validation_alias=AliasChoices("LLM_MODEL", "OPENAI_MODEL"),
+    )
+    llm_base_url: str = Field(
+        default="https://api.openai.com/v1",
+        validation_alias=AliasChoices("LLM_BASE_URL", "OPENAI_BASE_URL"),
+    )
     cors_origins: str = Field(
         default="http://localhost:3001,http://localhost:5173",
         validation_alias=AliasChoices("FASTAPI_CORS_ORIGINS", "BACKEND_CORS_ORIGINS"),
@@ -38,6 +52,18 @@ class BaseSettings(PydanticBaseSettings):
                 seen.add(origin)
 
         return origins
+
+    def get_llm_base_url(self) -> str:
+        base_url = self.llm_base_url.strip().rstrip("/")
+        parsed = urlparse(base_url)
+
+        if not base_url:
+            return "https://api.openai.com/v1"
+
+        if parsed.path in ("", "/"):
+            return f"{base_url}/v1"
+
+        return base_url
 
     model_config = SettingsConfigDict(
         env_prefix="FASTAPI_",

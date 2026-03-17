@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from typing import Literal
+
+from pydantic import BaseModel, Field
 
 
 class PredictionRequest(BaseModel):
@@ -9,3 +11,28 @@ class PredictionResponse(BaseModel):
     label: str
     score: float
     metadata: dict[str, float | int | str]
+
+
+class BigFiveScoresPayload(BaseModel):
+    O: float = Field(ge=0, le=100)
+    C: float = Field(ge=0, le=100)
+    E: float = Field(ge=0, le=100)
+    A: float = Field(ge=0, le=100)
+    N: float = Field(ge=0, le=100)
+
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "coach"]
+    text: str = Field(min_length=1, max_length=4000)
+
+
+class ChatRequest(BaseModel):
+    scores: BigFiveScoresPayload
+    messages: list[ChatMessage] = Field(min_length=1)
+    turn_count: int = Field(default=0, ge=0)
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    summary: str
+    model: str

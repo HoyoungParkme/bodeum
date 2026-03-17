@@ -6,14 +6,15 @@ import { Layout } from "@/components/layouts/layout";
 import {
   BigFiveScores,
   generateChatOpening,
-  generateFollowUpQuestions,
   getDimensionLabel,
   getHighestDimension,
   getLowestDimension,
   useAssessment,
 } from "@/contexts/assessment-context";
+import { requestCoachChat } from "@/services/api/endpoints/ml";
 
 const DEMO_SCORES: BigFiveScores = { O: 82, C: 64, E: 54, A: 90, N: 48 };
+const MAX_TURNS = 3;
 
 interface Message {
   id: string;
@@ -43,7 +44,6 @@ export default function Chat() {
   const scores = contextScores ?? DEMO_SCORES;
   const highest = getHighestDimension(scores);
   const lowest = getLowestDimension(scores);
-  const followUps = generateFollowUpQuestions(scores);
 
   const [messages, setMessages] = useState<Message[]>([
     { id: "init", role: "coach", text: generateChatOpening(scores) },
@@ -52,6 +52,7 @@ export default function Chat() {
   const [isPending, setIsPending] = useState(false);
   const [turnCount, setTurnCount] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -61,45 +62,61 @@ export default function Chat() {
     }
   }, [messages, isPending]);
 
-  const getCoachReply = (turn: number) => {
-    if (turn < followUps.length) {
-      return followUps[turn];
-    }
-
-    const summary = `${getDimensionLabel(highest)} 성향 강점 · ${getDimensionLabel(lowest)} 영역 성장 가능성 · 개인 맞춤 코칭 준비 완료`;
-    setChatSummary(summary);
-
-    return `오늘 나눈 이야기 잘 들었어요. ${getDimensionLabel(highest)} 성향이 강하신 만큼, 그에 맞는 방식으로 에너지를 관리하시는 게 중요할 것 같아요. ${getDimensionLabel(lowest)} 쪽도 조금씩 의식적으로 신경 써주시면 더 균형 잡힌 모습을 느끼실 수 있을 거예요. 아래에 오늘 대화 요약을 정리해드렸어요.`;
-  };
-
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
     if (!input.trim() || isPending || isComplete) {
       return;
     }
 
-    setMessages((previous) => [
-      ...previous,
-      { id: Date.now().toString(), role: "user", text: input.trim() },
-    ]);
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      text: input.trim(),
+    };
+    const nextMessages = [...messages, userMessage];
+
+    setMessages(nextMessages);
     setInput("");
+    setErrorText(null);
     setIsPending(true);
 
-    const currentTurn = turnCount;
+    try {
+      const response = await requestCoachChat({
+        scores,
+        messages: nextMessages.map(({ role, text }) => ({ role, text })),
+        turnCount,
+      });
 
-    window.setTimeout(() => {
-      setMessages((previous) => [
-        ...previous,
-        { id: `${Date.now()}-reply`, role: "coach", text: getCoachReply(currentTurn) },
+      const coachMessage: Message = {
+        id: `${Date.now()}-reply`,
+        role: "coach",
+        text: response.reply,
+      };
+      const updatedTurnCount = turnCount + 1;
+
+      setMessages([...nextMessages, coachMessage]);
+      setChatSummary(response.summary);
+      setTurnCount(updatedTurnCount);
+      setIsComplete(updatedTurnCount >= MAX_TURNS);
+    } catch (error) {
+      const fallbackMessage =
+        error instanceof Error
+          ? "모델 응답을 가져오지 못했습니다. 잠시 후 다시 시도해주세요."
+          : "알 수 없는 오류가 발생했습니다.";
+
+      setErrorText(fallbackMessage);
+      setMessages([
+        ...nextMessages,
+        {
+          id: `${Date.now()}-error`,
+          role: "coach",
+          text: fallbackMessage,
+        },
       ]);
-      setTurnCount((previous) => previous + 1);
+    } finally {
       setIsPending(false);
-
-      if (currentTurn >= followUps.length) {
-        setIsComplete(true);
-      }
-    }, 900);
+    }
   };
 
   return (
@@ -108,20 +125,27 @@ export default function Chat() {
         <div className="shrink-0 border-b border-border/50 bg-background px-4 py-3">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="font-display text-lg font-bold text-primary">AI 코치와의 상담</h1>
-              <p className="text-xs text-muted-foreground">설문 결과를 바탕으로 대화를 이어갑니다.</p>
+              <h1 className="font-display text-lg font-bold text-primary">AI 코치 상담</h1>
+              <p className="text-xs text-muted-foreground">
+                설문 결과를 바탕으로 대화를 이어갑니다.
+              </p>
             </div>
             <CoachAvatar />
           </div>
         </div>
 
-        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto bg-muted/15 px-4 py-5">
+        <div
+          ref={scrollRef}
+          className="flex-1 space-y-4 overflow-y-auto bg-muted/15 px-4 py-5"
+        >
           {messages.map((message) => (
             <motion.div
               key={message.id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`flex items-end gap-2 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex items-end gap-2 ${
+                message.role === "user" ? "justify-end" : "justify-start"
+              }`}
             >
               {message.role === "coach" && <CoachAvatar />}
               <div
@@ -138,11 +162,19 @@ export default function Chat() {
           ))}
 
           {isPending && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-end gap-2">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-end gap-2"
+            >
               <CoachAvatar />
               <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-sm border border-border bg-card px-4 py-3 shadow-sm">
                 {[0, 0.15, 0.3].map((delay) => (
-                  <span key={delay} className="h-2 w-2 animate-bounce rounded-full bg-primary/50" style={{ animationDelay: `${delay}s` }} />
+                  <span
+                    key={delay}
+                    className="h-2 w-2 animate-bounce rounded-full bg-primary/50"
+                    style={{ animationDelay: `${delay}s` }}
+                  />
                 ))}
               </div>
             </motion.div>
@@ -154,11 +186,19 @@ export default function Chat() {
               animate={{ opacity: 1, y: 0 }}
               className="mt-6 rounded-2xl border border-primary/20 bg-card p-5 shadow-sm"
             >
-              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-primary">오늘의 상담 요약</p>
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-primary">
+                오늘의 상담 요약
+              </p>
               <div className="space-y-2 text-sm">
-                <p>가장 두드러진 성향: <strong>{getDimensionLabel(highest)}</strong></p>
-                <p>성장 가능성이 높은 영역: <strong>{getDimensionLabel(lowest)}</strong></p>
-                <p>대화 턴 수: <strong>{turnCount}</strong></p>
+                <p>
+                  가장 두드러진 성향: <strong>{getDimensionLabel(highest)}</strong>
+                </p>
+                <p>
+                  보완 가능성이 큰 영역: <strong>{getDimensionLabel(lowest)}</strong>
+                </p>
+                <p>
+                  진행한 대화 수: <strong>{turnCount}</strong>
+                </p>
               </div>
 
               <div className="mt-5 flex flex-col gap-2 sm:flex-row">
@@ -173,7 +213,7 @@ export default function Chat() {
                   onClick={() => setLocation("/pricing")}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-primary/30 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
                 >
-                  심층 리포트 보기
+                  프리미엄 리포트 보기
                 </button>
               </div>
             </motion.div>
@@ -181,13 +221,19 @@ export default function Chat() {
         </div>
 
         <div className="shrink-0 border-t border-border/50 bg-background px-4 py-3">
+          {errorText && <p className="mb-2 text-xs text-destructive">{errorText}</p>}
+
           <form onSubmit={handleSubmit} className="flex items-center gap-2">
             <input
               type="text"
               value={input}
               onChange={(event) => setInput(event.target.value)}
               disabled={isPending || isComplete}
-              placeholder={isComplete ? "상담이 완료되었습니다." : "자유롭게 답변해주세요."}
+              placeholder={
+                isComplete
+                  ? "상담이 완료되었습니다."
+                  : "지금 느끼는 점을 편하게 적어주세요."
+              }
               className="flex-1 rounded-2xl border-2 border-transparent bg-muted/60 px-4 py-3 text-sm transition-all placeholder:text-muted-foreground/60 focus:border-primary/30 focus:bg-background focus:outline-none disabled:opacity-50 sm:text-base"
             />
             <button

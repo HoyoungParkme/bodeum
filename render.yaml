@@ -8,6 +8,8 @@ services:
     startCommand: gunicorn --bind 0.0.0.0:$PORT -k uvicorn.workers.UvicornWorker app:app
     healthCheckPath: /api/v1/health
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.4
       - key: FASTAPI_ENV
         value: production
       - key: FASTAPI_SECRET_KEY
@@ -16,3 +18,9 @@ services:
         sync: false
       - key: BACKEND_CORS_ORIGIN_REGEX
         value: ^https://.*\.vercel\.app$
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: gpt-4.1-mini
+      - key: LLM_BASE_URL
+        value: https://api.openai.com/v1
