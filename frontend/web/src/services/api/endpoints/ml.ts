@@ -17,6 +17,17 @@ export interface ChatMessagePayload {
   text: string;
 }
 
+export interface ChatOpenResponsePayload {
+  reply: string;
+  model: string;
+}
+
+export interface ReportInsightPayload {
+  strength: string;
+  challenge: string;
+  tip: string;
+}
+
 export interface ChatRequestPayload {
   scores: BigFiveScoresPayload;
   messages: ChatMessagePayload[];
@@ -27,6 +38,11 @@ export interface ChatResponsePayload {
   reply: string;
   summary: string;
   model: string;
+  report_insight: ReportInsightPayload | null;
+}
+
+export function requestChatOpen(scores: BigFiveScoresPayload) {
+  return http.post<ChatOpenResponsePayload>("/ml/chat/open", { scores });
 }
 
 export function requestCoachChat(payload: ChatRequestPayload) {

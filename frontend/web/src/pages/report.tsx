@@ -15,28 +15,37 @@ function buildRadarData(scores: BigFiveScores) {
 }
 
 export default function Report() {
-  const { scores: contextScores, chatSummary, isPremium } = useAssessment();
+  const { scores: contextScores, chatSummary, reportInsight, isPremium } = useAssessment();
   const scores = contextScores ?? DEMO_SCORES;
 
   const highest = getHighestDimension(scores);
   const lowest = getLowestDimension(scores);
   const radarData = buildRadarData(scores);
 
-  const strengths = [
-    `${getDimensionLabel(highest)} 에너지가 높아 새로운 상황에도 유연하게 적응하는 편입니다.`,
-    `${getDimensionLabel("A")} 점수가 높아 관계와 협업에서 자연스러운 강점을 보입니다.`,
-  ];
+  const strengths = reportInsight
+    ? [reportInsight.strength]
+    : [
+        `${getDimensionLabel(highest)} 에너지가 높아 새로운 상황에도 유연하게 적응하는 편입니다.`,
+        `${getDimensionLabel("A")} 점수가 높아 관계와 협업에서 자연스러운 강점을 보입니다.`,
+      ];
 
-  const growthAreas = [
-    `${getDimensionLabel(lowest)} 영역은 의식적인 연습과 루틴을 통해 더 안정적으로 보완할 수 있습니다.`,
-    "점수는 고정된 성격이 아니라 현재 패턴을 보여주는 참고값입니다.",
-  ];
+  const growthAreas = reportInsight
+    ? [reportInsight.challenge]
+    : [
+        `${getDimensionLabel(lowest)} 영역은 의식적인 연습과 루틴을 통해 더 안정적으로 보완할 수 있습니다.`,
+        "점수는 고정된 성격이 아니라 현재 패턴을 보여주는 참고값입니다.",
+      ];
 
-  const coachingTips = [
-    "강점 영역은 더 자주 활용하고, 낮은 영역은 작은 실험으로 보완해보세요.",
-    "한 주 동안의 생각과 감정을 짧게 기록하면 패턴이 더 명확하게 보입니다.",
-    "대인관계나 업무가 많은 주에는 회복 시간을 일부러 비워두는 편이 좋습니다.",
-  ];
+  const coachingTips = reportInsight
+    ? [
+        reportInsight.tip,
+        "한 주 동안의 생각과 감정을 짧게 기록하면 패턴이 더 명확하게 보입니다.",
+      ]
+    : [
+        "강점 영역은 더 자주 활용하고, 낮은 영역은 작은 실험으로 보완해보세요.",
+        "한 주 동안의 생각과 감정을 짧게 기록하면 패턴이 더 명확하게 보입니다.",
+        "대인관계나 업무가 많은 주에는 회복 시간을 일부러 비워두는 편이 좋습니다.",
+      ];
 
   return (
     <Layout>

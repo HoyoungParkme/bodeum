@@ -11,7 +11,7 @@ import {
   getLowestDimension,
   useAssessment,
 } from "@/contexts/assessment-context";
-import { requestCoachChat } from "@/services/api/endpoints/ml";
+import { requestChatOpen, requestCoachChat } from "@/services/api/endpoints/ml";
 
 const DEMO_SCORES: BigFiveScores = { O: 82, C: 64, E: 54, A: 90, N: 48 };
 const MAX_TURNS = 3;
@@ -40,14 +40,13 @@ function UserAvatar() {
 
 export default function Chat() {
   const [, setLocation] = useLocation();
-  const { scores: contextScores, setChatSummary } = useAssessment();
+  const { scores: contextScores, setChatSummary, setReportInsight } = useAssessment();
   const scores = contextScores ?? DEMO_SCORES;
   const highest = getHighestDimension(scores);
   const lowest = getLowestDimension(scores);
 
-  const [messages, setMessages] = useState<Message[]>([
-    { id: "init", role: "coach", text: generateChatOpening(scores) },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoadingOpen, setIsLoadingOpen] = useState(true);
   const [input, setInput] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [turnCount, setTurnCount] = useState(0);
@@ -56,16 +55,41 @@ export default function Chat() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // 페이지 진입 시 LLM 기반 첫 메시지 생성
+  useEffect(() => {
+    let cancelled = false;
+
+    requestChatOpen({ O: scores.O, C: scores.C, E: scores.E, A: scores.A, N: scores.N })
+      .then((response) => {
+        if (cancelled) return;
+        setMessages([{ id: "init", role: "coach", text: response.reply }]);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // API 실패 시 로컬 템플릿으로 폴백
+        setMessages([{ id: "init", role: "coach", text: generateChatOpening(scores) }]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingOpen(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  // scores는 설문 완료 시 고정되므로 의존성 배열에 포함하지 않음
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isPending]);
+  }, [messages, isPending, isLoadingOpen]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!input.trim() || isPending || isComplete) {
+    if (!input.trim() || isPending || isComplete || isLoadingOpen) {
       return;
     }
 
@@ -97,6 +121,11 @@ export default function Chat() {
 
       setMessages([...nextMessages, coachMessage]);
       setChatSummary(response.summary);
+
+      if (response.report_insight) {
+        setReportInsight(response.report_insight);
+      }
+
       setTurnCount(updatedTurnCount);
       setIsComplete(updatedTurnCount >= MAX_TURNS);
     } catch (error) {
@@ -138,6 +167,25 @@ export default function Chat() {
           ref={scrollRef}
           className="flex-1 space-y-4 overflow-y-auto bg-muted/15 px-4 py-5"
         >
+          {isLoadingOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-end gap-2"
+            >
+              <CoachAvatar />
+              <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-sm border border-border bg-card px-4 py-3 shadow-sm">
+                {[0, 0.15, 0.3].map((delay) => (
+                  <span
+                    key={delay}
+                    className="h-2 w-2 animate-bounce rounded-full bg-primary/50"
+                    style={{ animationDelay: `${delay}s` }}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
+
           {messages.map((message) => (
             <motion.div
               key={message.id}
@@ -228,17 +276,19 @@ export default function Chat() {
               type="text"
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              disabled={isPending || isComplete}
+              disabled={isPending || isComplete || isLoadingOpen}
               placeholder={
                 isComplete
                   ? "상담이 완료되었습니다."
-                  : "지금 느끼는 점을 편하게 적어주세요."
+                  : isLoadingOpen
+                    ? "코치가 준비 중입니다..."
+                    : "지금 느끼는 점을 편하게 적어주세요."
               }
               className="flex-1 rounded-2xl border-2 border-transparent bg-muted/60 px-4 py-3 text-sm transition-all placeholder:text-muted-foreground/60 focus:border-primary/30 focus:bg-background focus:outline-none disabled:opacity-50 sm:text-base"
             />
             <button
               type="submit"
-              disabled={!input.trim() || isPending || isComplete}
+              disabled={!input.trim() || isPending || isComplete || isLoadingOpen}
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground transition-colors disabled:bg-muted disabled:text-muted-foreground"
             >
               <Send className="h-4 w-4" />

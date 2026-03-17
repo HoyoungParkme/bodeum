@@ -26,6 +26,21 @@ class ChatMessage(BaseModel):
     text: str = Field(min_length=1, max_length=4000)
 
 
+class ChatOpenRequest(BaseModel):
+    scores: BigFiveScoresPayload
+
+
+class ChatOpenResponse(BaseModel):
+    reply: str
+    model: str
+
+
+class ReportInsight(BaseModel):
+    strength: str
+    challenge: str
+    tip: str
+
+
 class ChatRequest(BaseModel):
     scores: BigFiveScoresPayload
     messages: list[ChatMessage] = Field(min_length=1)
@@ -36,3 +51,4 @@ class ChatResponse(BaseModel):
     reply: str
     summary: str
     model: str
+    report_insight: ReportInsight | None = None

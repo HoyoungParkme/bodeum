@@ -10,11 +10,18 @@ export interface BigFiveScores {
   N: number;
 }
 
+export interface ReportInsight {
+  strength: string;
+  challenge: string;
+  tip: string;
+}
+
 export interface AssessmentState {
   answers: Record<number, number>;
   scores: BigFiveScores | null;
   isPremium: boolean;
   chatSummary: string | null;
+  reportInsight: ReportInsight | null;
 }
 
 interface AssessmentContextValue extends AssessmentState {
@@ -22,6 +29,7 @@ interface AssessmentContextValue extends AssessmentState {
   computeScores: (answers: Record<number, number>) => BigFiveScores;
   setIsPremium: (value: boolean) => void;
   setChatSummary: (summary: string) => void;
+  setReportInsight: (insight: ReportInsight) => void;
   reset: () => void;
 }
 
@@ -63,6 +71,7 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
     scores: null,
     isPremium: false,
     chatSummary: null,
+    reportInsight: null,
   });
 
   const setAnswers = (answers: Record<number, number>) => {
@@ -80,12 +89,17 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
     setState((previous) => ({ ...previous, chatSummary: summary }));
   };
 
+  const setReportInsight = (insight: ReportInsight) => {
+    setState((previous) => ({ ...previous, reportInsight: insight }));
+  };
+
   const reset = () => {
     setState({
       answers: {},
       scores: null,
       isPremium: false,
       chatSummary: null,
+      reportInsight: null,
     });
   };
 
@@ -97,6 +111,7 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
         computeScores,
         setIsPremium,
         setChatSummary,
+        setReportInsight,
         reset,
       }}
     >
@@ -137,6 +152,7 @@ export function getLowestDimension(scores: BigFiveScores): Category {
     .reduce((current, next) => (next[1] < current[1] ? next : current))[0];
 }
 
+// 폴백용: API 호출 실패 시 로컬에서 생성
 export function generateChatOpening(scores: BigFiveScores): string {
   const highest = getHighestDimension(scores);
   const lowest = getLowestDimension(scores);
@@ -160,38 +176,4 @@ export function generateChatOpening(scores: BigFiveScores): string {
   };
 
   return `${openings[highest]} ${followUps[lowest]} 오늘 편하게 이야기 나눠봐요.`;
-}
-
-export function generateFollowUpQuestions(scores: BigFiveScores): string[] {
-  const prompts: string[] = [];
-
-  if (scores.N >= 70) {
-    prompts.push("걱정이나 불안이 특히 심해지는 상황이 있으신가요? 어떤 순간에 가장 많이 느끼시나요?");
-  } else if (scores.N <= 40) {
-    prompts.push("스트레스 상황에서 자신만의 회복 방식이 있으신가요? 어떤 방법이 가장 도움이 되시나요?");
-  }
-
-  if (scores.A >= 75) {
-    prompts.push("다른 사람을 많이 배려하시는 편인데, 그러다 정작 자신의 감정을 뒤로 미루신 적은 없으신가요?");
-  }
-
-  if (scores.O >= 75 && scores.C <= 50) {
-    prompts.push("새로운 것에 끌리는 반면, 한 가지를 끝까지 밀고 나가는 게 어렵다고 느낀 적이 있으신가요?");
-  }
-
-  if (scores.E <= 40) {
-    prompts.push("혼자 있는 시간이 충전이 되시나요, 아니면 외로움으로 느껴지시나요?");
-  }
-
-  if (scores.C >= 75) {
-    prompts.push("계획이 뜻대로 안 풀렸을 때 어떻게 반응하시는 편인가요? 많이 힘드신 편인가요?");
-  }
-
-  if (prompts.length === 0) {
-    prompts.push("최근 일상에서 가장 에너지를 많이 쓰는 부분이 어디인지 이야기해주실 수 있나요?");
-  }
-
-  prompts.push("지금 이 시점에서 자신에 대해 가장 궁금한 부분이 있다면 무엇인가요?");
-
-  return prompts.slice(0, 3);
 }
