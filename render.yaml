@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: bodeum-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements/prod.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT -k uvicorn.workers.UvicornWorker app:app
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: FASTAPI_ENV
+        value: production
+      - key: FASTAPI_SECRET_KEY
+        generateValue: true
+      - key: BACKEND_CORS_ORIGINS
+        sync: false
+      - key: BACKEND_CORS_ORIGIN_REGEX
+        value: ^https://.*\.vercel\.app$
