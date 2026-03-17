@@ -1,0 +1,97 @@
+openapi: 3.1.0
+info:
+  title: My Project API
+  version: 0.1.0
+servers:
+  - url: /api/v1
+paths:
+  /auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Token issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+  /users:
+    get:
+      summary: List users
+      responses:
+        "200":
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+  /ml/predict:
+    post:
+      summary: Create prediction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PredictionRequest"
+      responses:
+        "200":
+          description: Prediction output
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PredictionResponse"
+components:
+  schemas:
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required: [email, password]
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+      required: [access_token, token_type]
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+      required: [id, email, name]
+    PredictionRequest:
+      type: object
+      properties:
+        features:
+          type: object
+          additionalProperties: true
+      required: [features]
+    PredictionResponse:
+      type: object
+      properties:
+        label:
+          type: string
+        score:
+          type: number
+        metadata:
+          type: object
+          additionalProperties: true
+      required: [label, score, metadata]

@@ -1,0 +1,43 @@
+name: bodeum
+
+services:
+  backend:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.backend
+      target: production
+    environment:
+      FASTAPI_ENV: production
+      FASTAPI_HOST: 0.0.0.0
+      FASTAPI_PORT: 8000
+      FASTAPI_SECRET_KEY: ${FASTAPI_SECRET_KEY:-change-me}
+    expose:
+      - "8000"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5).read()",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  nginx:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.nginx
+      args:
+        BASE_PATH: ${BASE_PATH:-/}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+        PORT: ${PORT:-5173}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    restart: unless-stopped

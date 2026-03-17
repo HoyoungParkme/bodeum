@@ -1,0 +1,53 @@
+name: bodeum
+
+services:
+  backend:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.backend
+      target: development
+    environment:
+      FASTAPI_ENV: development
+      FASTAPI_HOST: 0.0.0.0
+      FASTAPI_PORT: 8000
+      FASTAPI_SECRET_KEY: ${FASTAPI_SECRET_KEY:-change-me}
+    ports:
+      - "${FASTAPI_PORT:-8000}:8000"
+    volumes:
+      - ../../backend:/app/backend
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5).read()",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.frontend
+    environment:
+      CI: "true"
+      PORT: 5173
+      BASE_PATH: ${BASE_PATH:-/}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+      VITE_WS_BASE_URL: ${VITE_WS_BASE_URL:-}
+      VITE_DEV_PROXY_TARGET: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3001}:5173"
+    volumes:
+      - ../../:/app
+      - frontend_node_modules:/app/node_modules
+    command: sh -c "corepack enable && pnpm install && pnpm --dir frontend/web dev"
+
+volumes:
+  frontend_node_modules:

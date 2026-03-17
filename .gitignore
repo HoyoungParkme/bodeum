@@ -10,6 +10,14 @@ out-tsc
 
 # dependencies
 node_modules
+.pnpm-store/
+.venv
+venv
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
 
 # IDEs and editors
 /.idea
@@ -28,10 +36,19 @@ node_modules
 !.vscode/extensions.json
 
 # misc
+*.zip
+.env
+.env.*
+!.env.example
+.vercel/
+.netlify/
 /.sass-cache
 /connect.lock
 /coverage
 /libpeerconnection.log
+frontend/**/dist
+backend/.coverage
+ml/saved_models/*
 npm-debug.log
 yarn-error.log
 testem.log

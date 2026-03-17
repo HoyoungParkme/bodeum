@@ -1,0 +1,21 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc tsconfig.base.json tsconfig.json ./
+COPY frontend/web/package.json frontend/web/package.json
+
+RUN pnpm install --frozen-lockfile
+
+COPY frontend /app/frontend
+
+ENV PORT=5173 \
+    BASE_PATH=/ \
+    VITE_API_BASE_URL=/api/v1 \
+    VITE_DEV_PROXY_TARGET=http://backend:8000
+
+EXPOSE 5173
+
+CMD ["sh", "-c", "pnpm install && pnpm --dir frontend/web dev"]

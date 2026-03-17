@@ -1,0 +1,35 @@
+cd d:\dev\personal\psychological_analysis
+
+[개발용 실행]
+docker compose -f infrastructure/docker/compose.dev.yml up -d --build --remove-orphans
+
+[개발용 종료]
+docker compose -f infrastructure/docker/compose.dev.yml down --remove-orphans
+
+[개발용 상태 확인]
+docker compose -f infrastructure/docker/compose.dev.yml ps
+
+[개발용 로그 보기]
+docker compose -f infrastructure/docker/compose.dev.yml logs -f frontend
+docker compose -f infrastructure/docker/compose.dev.yml logs -f backend
+
+[개발용 접속 주소]
+프론트: http://localhost:3001
+관리자: http://localhost:3001/admin
+백엔드: http://localhost:8000
+
+[배포형 로컬 실행]
+docker compose -f infrastructure/docker/compose.yml up -d --build --remove-orphans
+
+[배포형 로컬 종료]
+docker compose -f infrastructure/docker/compose.yml down --remove-orphans
+
+[배포형 로컬 상태 확인]
+docker compose -f infrastructure/docker/compose.yml ps
+
+[배포형 로컬 로그 보기]
+docker compose -f infrastructure/docker/compose.yml logs -f
+
+[배포형 접속 주소]
+프론트: http://localhost
+관리자: http://localhost/admin

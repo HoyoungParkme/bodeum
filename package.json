@@ -1,16 +1,18 @@
 {
-  "name": "workspace",
-  "version": "0.0.0",
-  "license": "MIT",
-  "scripts": {
-    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
-    "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
-  },
+  "name": "bodeum",
+  "version": "0.1.0",
   "private": true,
+  "scripts": {
+    "frontend:dev": "corepack pnpm --dir frontend/web dev",
+    "frontend:build": "corepack pnpm --dir frontend/web build",
+    "frontend:typecheck": "corepack pnpm --dir frontend/web exec tsc -p tsconfig.json --noEmit",
+    "docker:up": "docker compose -f infrastructure/docker/compose.yml up --build",
+    "docker:down": "docker compose -f infrastructure/docker/compose.yml down",
+    "docker:up:dev": "docker compose -f infrastructure/docker/compose.dev.yml up --build",
+    "docker:down:dev": "docker compose -f infrastructure/docker/compose.dev.yml down"
+  },
   "devDependencies": {
-    "typescript": "~5.9.2",
-    "prettier": "^3.8.1"
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.2"
   }
 }
