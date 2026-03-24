@@ -1,7 +1,8 @@
 import { ReactNode, useState } from "react";
-import { Leaf, Menu, X } from "lucide-react";
+import { Leaf, LogIn, LogOut, Menu, X } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { APP_NAME } from "@/constants";
+import { useAuth } from "@/contexts/auth-context";
 
 interface LayoutProps {
   children: ReactNode;
@@ -11,6 +12,7 @@ interface LayoutProps {
 export function Layout({ children, showNav = true }: LayoutProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [location] = useLocation();
+  const { user, logout } = useAuth();
 
   return (
     <div className="min-h-screen flex flex-col font-sans">
@@ -43,12 +45,36 @@ export function Layout({ children, showNav = true }: LayoutProps) {
               >
                 요금제
               </Link>
-              <Link
-                href="/start"
-                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5"
-              >
-                무료로 시작하기
-              </Link>
+              {user ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">
+                    {user.name ?? user.email ?? "사용자"}
+                  </span>
+                  <button
+                    onClick={logout}
+                    className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    로그아웃
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/login"
+                    className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <LogIn className="h-4 w-4" />
+                    로그인
+                  </Link>
+                  <Link
+                    href="/start"
+                    className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5"
+                  >
+                    무료로 시작하기
+                  </Link>
+                </div>
+              )}
             </nav>
 
             <button
@@ -90,6 +116,30 @@ export function Layout({ children, showNav = true }: LayoutProps) {
               >
                 AI 코치 상담
               </Link>
+              <div className="my-1 h-px bg-border" />
+              {user ? (
+                <>
+                  <span className="px-3 py-1 text-xs text-muted-foreground">
+                    {user.name ?? user.email ?? "사용자"}
+                  </span>
+                  <button
+                    onClick={() => { logout(); setMenuOpen(false); }}
+                    className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    로그아웃
+                  </button>
+                </>
+              ) : (
+                <Link
+                  href="/login"
+                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <LogIn className="h-4 w-4" />
+                  로그인 / 회원가입
+                </Link>
+              )}
               <div className="my-1 h-px bg-border" />
               <Link
                 href="/admin"

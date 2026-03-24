@@ -31,7 +31,7 @@ export default function Login() {
   };
 
   return (
-    <Layout showNav={false}>
+    <Layout>
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

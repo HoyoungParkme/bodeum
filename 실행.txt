@@ -1,7 +1,10 @@
 cd d:\dev\personal\psychological_analysis
 
-[개발용 실행]
+[개발용 최초 실행 / 코드 변경 후]
 docker compose -f infrastructure/docker/compose.dev.yml up -d --build --remove-orphans
+
+[개발용 재실행 (코드 변경 없을 때)]
+docker compose -f infrastructure/docker/compose.dev.yml up -d
 
 [개발용 종료]
 docker compose -f infrastructure/docker/compose.dev.yml down --remove-orphans
@@ -18,8 +21,11 @@ docker compose -f infrastructure/docker/compose.dev.yml logs -f backend
 관리자: http://localhost:3001/admin
 백엔드: http://localhost:8000
 
-[배포형 로컬 실행]
+[배포형 최초 실행 / 코드 변경 후]
 docker compose -f infrastructure/docker/compose.yml up -d --build --remove-orphans
+
+[배포형 재실행 (코드 변경 없을 때)]
+docker compose -f infrastructure/docker/compose.yml up -d
 
 [배포형 로컬 종료]
 docker compose -f infrastructure/docker/compose.yml down --remove-orphans
