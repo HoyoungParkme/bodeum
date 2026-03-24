@@ -40,6 +40,14 @@ class BaseSettings(PydanticBaseSettings):
             "BACKEND_CORS_ORIGIN_REGEX",
         ),
     )
+    frontend_url: str = Field(
+        default="http://localhost:5173",
+        validation_alias=AliasChoices("FRONTEND_URL", "VITE_APP_URL"),
+    )
+    kakao_client_id: str = Field(default="", validation_alias="KAKAO_CLIENT_ID")
+    kakao_client_secret: str = Field(default="", validation_alias="KAKAO_CLIENT_SECRET")
+    google_client_id: str = Field(default="", validation_alias="GOOGLE_CLIENT_ID")
+    google_client_secret: str = Field(default="", validation_alias="GOOGLE_CLIENT_SECRET")
 
     def get_cors_origins(self) -> list[str]:
         origins: list[str] = []

@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/common/ui/toaster";
 import { TooltipProvider } from "@/components/common/ui/tooltip";
 import { AssessmentProvider } from "@/contexts/assessment-context";
+import { AuthProvider } from "@/contexts/auth-context";
 
 // Pages
 import Home from "@/pages/home";
@@ -15,6 +16,8 @@ import Report from "@/pages/report";
 import Pricing from "@/pages/pricing";
 import PremiumReport from "@/pages/premium-report";
 import Admin from "@/pages/admin/index";
+import Login from "@/pages/login";
+import AuthCallback from "@/pages/auth-callback";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -39,6 +42,8 @@ function Router() {
       <Route path="/pricing" component={Pricing} />
       <Route path="/premium-report" component={PremiumReport} />
       <Route path="/admin" component={Admin} />
+      <Route path="/login" component={Login} />
+      <Route path="/auth/callback" component={AuthCallback} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -47,6 +52,7 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <AuthProvider>
       <AssessmentProvider>
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
@@ -55,6 +61,7 @@ function App() {
           <Toaster />
         </TooltipProvider>
       </AssessmentProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
